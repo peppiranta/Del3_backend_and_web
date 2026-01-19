@@ -779,20 +779,21 @@ def get_admin():
 def add_admin():
     data = request.get_json()
 
-    if not data or "username" not in data or "password" not in data:
-        return jsonify({"error message": "invalid request body"})
+    required = ("first_name", "last_name", "position", "email", "password")
+    if not data or not all(k in data for k in required):
+        return jsonify({"error message": "invalid request body"}), 400
 
     with engine.connect() as con:
         con.execute(
             db.text("""
-                INSERT INTO admin (username, password)
-                VALUES (:username, :password)
+                INSERT INTO admin (first_name, last_name, position, email, password)
+                VALUES (:first_name, :last_name, :position, :email, :password)
             """),
             data
         )
         con.commit()
 
-    return jsonify({"response message": "Admin added"})
+    return jsonify({"response message": "Admin added"}), 201
 
 
 @app.route("/api/v1/admin/<int:id>", methods=["GET"])
@@ -804,7 +805,7 @@ def get_admin_by_id(id):
         ).fetchone()
 
     if not result:
-        return jsonify({"error message": "admin not found"})
+        return jsonify({"error message": "admin not found"}), 404
 
     return jsonify(dict(result._mapping))
 
@@ -814,16 +815,13 @@ def update_admin(id):
     data = request.get_json()
     fields, params = [], {"id": id}
 
-    if "username" in data:
-        fields.append("username = :username")
-        params["username"] = data["username"]
-
-    if "password" in data:
-        fields.append("password = :password")
-        params["password"] = data["password"]
+    for field in ("first_name", "last_name", "position", "email", "password"):
+        if field in data:
+            fields.append(f"{field} = :{field}")
+            params[field] = data[field]
 
     if not fields:
-        return jsonify({"error message": "invalid fields"})
+        return jsonify({"error message": "invalid fields"}), 400
 
     with engine.connect() as con:
         result = con.execute(
@@ -833,7 +831,7 @@ def update_admin(id):
         con.commit()
 
     if result.rowcount == 0:
-        return jsonify({"error message": "admin not found"})
+        return jsonify({"error message": "admin not found"}), 404
 
     return jsonify({"response message": "Admin updated"})
 
@@ -848,9 +846,10 @@ def delete_admin(id):
         con.commit()
 
     if result.rowcount == 0:
-        return jsonify({"error message": "admin not found"})
+        return jsonify({"error message": "admin not found"}), 404
 
     return jsonify({"response message": "Admin deleted"})
+
 
 
 
@@ -867,20 +866,21 @@ def get_staff():
 def add_staff():
     data = request.get_json()
 
-    if not data or not all(k in data for k in ("name", "role", "salary")):
-        return jsonify({"error message": "invalid request body"})
+    required = ("first_name", "last_name", "role", "email", "password", "admin_id")
+    if not data or not all(k in data for k in required):
+        return jsonify({"error message": "invalid request body"}), 400
 
     with engine.connect() as con:
         con.execute(
             db.text("""
-                INSERT INTO staff (name, role, salary)
-                VALUES (:name, :role, :salary)
+                INSERT INTO staff (first_name, last_name, role, email, password, admin_id)
+                VALUES (:first_name, :last_name, :role, :email, :password, :admin_id)
             """),
             data
         )
         con.commit()
 
-    return jsonify({"response message": "Staff added"})
+    return jsonify({"response message": "Staff added"}), 201
 
 
 @app.route("/api/v1/staff/<int:id>", methods=["GET"])
@@ -892,7 +892,7 @@ def get_staff_by_id(id):
         ).fetchone()
 
     if not result:
-        return jsonify({"error message": "staff not found"})
+        return jsonify({"error message": "staff not found"}), 404
 
     return jsonify(dict(result._mapping))
 
@@ -902,13 +902,13 @@ def update_staff(id):
     data = request.get_json()
     fields, params = [], {"id": id}
 
-    for field in ("name", "role", "salary"):
+    for field in ("first_name", "last_name", "role", "email", "password", "admin_id"):
         if field in data:
             fields.append(f"{field} = :{field}")
             params[field] = data[field]
 
     if not fields:
-        return jsonify({"error message": "invalid fields"})
+        return jsonify({"error message": "invalid fields"}), 400
 
     with engine.connect() as con:
         result = con.execute(
@@ -918,7 +918,7 @@ def update_staff(id):
         con.commit()
 
     if result.rowcount == 0:
-        return jsonify({"error message": "staff not found"})
+        return jsonify({"error message": "staff not found"}), 404
 
     return jsonify({"response message": "Staff updated"})
 
@@ -933,9 +933,10 @@ def delete_staff(id):
         con.commit()
 
     if result.rowcount == 0:
-        return jsonify({"error message": "staff not found"})
+        return jsonify({"error message": "staff not found"}), 404
 
     return jsonify({"response message": "Staff deleted"})
+
 
 
 
@@ -952,20 +953,21 @@ def get_bill():
 def add_bill():
     data = request.get_json()
 
-    if not data or not all(k in data for k in ("order_id", "total_amount", "payment_method")):
-        return jsonify({"error message": "invalid request body"})
+    required = ("order_id", "total_amount", "payment_method", "paid_by")
+    if not data or not all(k in data for k in required):
+        return jsonify({"error message": "invalid request body"}), 400
 
     with engine.connect() as con:
         con.execute(
             db.text("""
-                INSERT INTO bill (order_id, total_amount, payment_method)
-                VALUES (:order_id, :total_amount, :payment_method)
+                INSERT INTO bill (order_id, total_amount, payment_method, paid_by)
+                VALUES (:order_id, :total_amount, :payment_method, :paid_by)
             """),
             data
         )
         con.commit()
 
-    return jsonify({"response message": "Bill added"})
+    return jsonify({"response message": "Bill added"}), 201
 
 
 @app.route("/api/v1/bill/<int:id>", methods=["GET"])
@@ -977,7 +979,7 @@ def get_bill_by_id(id):
         ).fetchone()
 
     if not result:
-        return jsonify({"error message": "bill not found"})
+        return jsonify({"error message": "bill not found"}), 404
 
     return jsonify(dict(result._mapping))
 
@@ -987,13 +989,13 @@ def update_bill(id):
     data = request.get_json()
     fields, params = [], {"id": id}
 
-    for field in ("order_id", "total_amount", "payment_method"):
+    for field in ("order_id", "total_amount", "payment_method", "paid_by"):
         if field in data:
             fields.append(f"{field} = :{field}")
             params[field] = data[field]
 
     if not fields:
-        return jsonify({"error message": "invalid fields"})
+        return jsonify({"error message": "invalid fields"}), 400
 
     with engine.connect() as con:
         result = con.execute(
@@ -1003,7 +1005,7 @@ def update_bill(id):
         con.commit()
 
     if result.rowcount == 0:
-        return jsonify({"error message": "bill not found"})
+        return jsonify({"error message": "bill not found"}), 404
 
     return jsonify({"response message": "Bill updated"})
 
@@ -1018,92 +1020,100 @@ def delete_bill(id):
         con.commit()
 
     if result.rowcount == 0:
-        return jsonify({"error message": "bill not found"})
+        return jsonify({"error message": "bill not found"}), 404
 
     return jsonify({"response message": "Bill deleted"})
 
 
 
+
 # Sales Report Endpoints
 
-@app.route("/api/v1/salesreport", methods=["GET"])
-def get_salesreport():
+@app.route("/api/v1/salesreports", methods=["GET"])
+def get_salesreports():
     with engine.connect() as con:
-        result = con.execute(db.text("SELECT * FROM salesreport")).fetchall()
+        result = con.execute(db.text("SELECT * FROM salesreports")).fetchall()
     return jsonify([dict(row._mapping) for row in result])
 
 
-@app.route("/api/v1/salesreport", methods=["POST"])
+@app.route("/api/v1/salesreports", methods=["POST"])
 def add_salesreport():
     data = request.get_json()
 
-    if not data or not all(k in data for k in ("report_date", "total_sales")):
-        return jsonify({"error message": "invalid request body"})
+    required = ("start_date", "end_date", "total_sales")
+    if not data or not all(k in data for k in required):
+        return jsonify({"error message": "invalid request body"}), 400
 
     with engine.connect() as con:
         con.execute(
             db.text("""
-                INSERT INTO salesreport (report_date, total_sales)
-                VALUES (:report_date, :total_sales)
+                INSERT INTO salesreports (start_date, end_date, total_sales, best_selling, peak_hours)
+                VALUES (:start_date, :end_date, :total_sales, :best_selling, :peak_hours)
             """),
-            data
+            {
+                "start_date": data["start_date"],
+                "end_date": data["end_date"],
+                "total_sales": data["total_sales"],
+                "best_selling": data.get("best_selling"),
+                "peak_hours": data.get("peak_hours")
+            }
         )
         con.commit()
 
-    return jsonify({"response message": "Sales report added"})
+    return jsonify({"response message": "Sales report added"}), 201
 
 
-@app.route("/api/v1/salesreport/<int:id>", methods=["GET"])
+@app.route("/api/v1/salesreports/<int:id>", methods=["GET"])
 def get_salesreport_by_id(id):
     with engine.connect() as con:
         result = con.execute(
-            db.text("SELECT * FROM salesreport WHERE report_id = :id"),
+            db.text("SELECT * FROM salesreports WHERE report_id = :id"),
             {"id": id}
         ).fetchone()
 
     if not result:
-        return jsonify({"error message": "sales report not found"})
+        return jsonify({"error message": "sales report not found"}), 404
 
     return jsonify(dict(result._mapping))
 
 
-@app.route("/api/v1/salesreport/<int:id>", methods=["PUT"])
+@app.route("/api/v1/salesreports/<int:id>", methods=["PUT"])
 def update_salesreport(id):
     data = request.get_json()
     fields, params = [], {"id": id}
 
-    for field in ("report_date", "total_sales"):
+    for field in ("start_date", "end_date", "total_sales", "best_selling", "peak_hours"):
         if field in data:
             fields.append(f"{field} = :{field}")
             params[field] = data[field]
 
     if not fields:
-        return jsonify({"error message": "invalid fields"})
+        return jsonify({"error message": "invalid fields"}), 400
 
     with engine.connect() as con:
         result = con.execute(
-            db.text(f"UPDATE salesreport SET {', '.join(fields)} WHERE report_id = :id"),
+            db.text(f"UPDATE salesreports SET {', '.join(fields)} WHERE report_id = :id"),
             params
         )
         con.commit()
 
     if result.rowcount == 0:
-        return jsonify({"error message": "sales report not found"})
+        return jsonify({"error message": "sales report not found"}), 404
 
     return jsonify({"response message": "Sales report updated"})
 
 
-@app.route("/api/v1/salesreport/<int:id>", methods=["DELETE"])
+@app.route("/api/v1/salesreports/<int:id>", methods=["DELETE"])
 def delete_salesreport(id):
     with engine.connect() as con:
         result = con.execute(
-            db.text("DELETE FROM salesreport WHERE report_id = :id"),
+            db.text("DELETE FROM salesreports WHERE report_id = :id"),
             {"id": id}
         )
         con.commit()
 
     if result.rowcount == 0:
-        return jsonify({"error message": "sales report not found"})
+        return jsonify({"error message": "sales report not found"}), 404
 
     return jsonify({"response message": "Sales report deleted"})
 
