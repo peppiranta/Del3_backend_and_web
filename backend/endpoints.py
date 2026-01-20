@@ -21,14 +21,14 @@ def get_inventoryitem():
         result = con.execute(query).fetchall()
         inventory_list = [dict(row._mapping) for row in result]
 
-        return jsonify(inventory_list)
+        return jsonify(inventory_list), 200
         
 @app.route("/api/v1/inventoryitem", methods=["POST"])
 def add_inventoryitem():
     data = request.get_json()
 
     if not data or "ingredient_name" not in data or "ingredient_quantity" not in data:
-        return jsonify({"error message": "could not add inventory item, request body format invalid"})
+        return jsonify({"error message": "could not add inventory item, request body format invalid"}), 400
 
     with engine.connect() as con:
         query = db.text("""
@@ -41,7 +41,7 @@ def add_inventoryitem():
         })
         con.commit()
 
-    return jsonify({"response message": "Inventory item added"})
+    return jsonify({"response message": "Inventory item added"}), 201
 
 @app.route("/api/v1/inventoryitem/<int:id>", methods=["GET"])
 def get_inventoryitem_by_id(id):
@@ -50,9 +50,9 @@ def get_inventoryitem_by_id(id):
         result = con.execute(query, {"id": id}).fetchone()
 
     if result is None:
-        return jsonify({"error message": "could not find inventory item"})
+        return jsonify({"error message": "could not find inventory item"}), 404
 
-    return jsonify(dict(result._mapping))
+    return jsonify(dict(result._mapping)), 200
 
 @app.route("/api/v1/inventoryitem/<int:id>", methods=["PUT"])
 def update_inventoryitem(id):
@@ -72,7 +72,7 @@ def update_inventoryitem(id):
     if not fields:
         return jsonify({
             "error message": "could not update inventory item, invalid fields"
-        })
+        }), 400
 
     with engine.connect() as con:
         query = db.text(f"""
@@ -86,11 +86,11 @@ def update_inventoryitem(id):
     if result.rowcount == 0:
         return jsonify({
             "error message": "could not find inventory item"
-        })
+        }), 404
 
     return jsonify({
         "response message": "Inventory item updated"
-    })
+    }), 200
 
 @app.route("/api/v1/inventoryitem/<int:id>", methods=["DELETE"])
 def delete_inventoryitem(id):
@@ -100,9 +100,9 @@ def delete_inventoryitem(id):
         con.commit()
 
     if result.rowcount == 0:
-        return jsonify({"error message": "could not find inventory item"})
+        return jsonify({"error message": "could not find inventory item"}), 404
 
-    return jsonify({"response message": "Inventory item deleted"})
+    return jsonify({"response message": "Inventory item deleted"}), 200
 
 
 @app.route("/api/v1/menuitem", methods=["GET"])
@@ -113,7 +113,7 @@ def get_menuitem():
 
     menuitems = [dict(row._mapping) for row in result]
 
-    return jsonify({"menuitem": menuitems})
+    return jsonify({"menuitem": menuitems}), 200
 
 
 @app.route("/api/v1/menuitem", methods=["POST"])
@@ -123,7 +123,7 @@ def add_menuitem():
     if not data or "item_name" not in data or "item_price" not in data or "category" not in data:
         return jsonify({
             "error message": "could not add menu item, request body format invalid"
-        })
+        }), 400
 
     with engine.connect() as con:
         query = db.text("""
@@ -139,7 +139,7 @@ def add_menuitem():
 
     return jsonify({
         "response message": "Menu item added successfully!"
-    })
+    }), 201
 
 
 @app.route("/api/v1/menuitem/<int:id>", methods=["GET"])
@@ -151,9 +151,9 @@ def get_menuitem_by_id(id):
     if result is None:
         return jsonify({
             "error message": "Could not find menu item."
-        })
+        }), 404
 
-    return jsonify(dict(result._mapping))
+    return jsonify(dict(result._mapping)), 200
 
 
 @app.route("/api/v1/menuitem/<int:id>", methods=["PUT"])
@@ -163,7 +163,7 @@ def update_menuitem(id):
     if not data:
         return jsonify({
             "error message": "Could not update menu item, request body format invalid."
-        })
+        }), 400
 
     fields = []
     params = {"id": id}
@@ -183,7 +183,7 @@ def update_menuitem(id):
     if not fields:
         return jsonify({
             "error message": "Could not update menu item, invalid fields."
-        })
+        }), 400
 
     with engine.connect() as con:
         query = db.text(f"""
@@ -197,11 +197,11 @@ def update_menuitem(id):
     if result.rowcount == 0:
         return jsonify({
             "error message": "Could not find menu item."
-        })
+        }), 404
 
     return jsonify({
         "response message": "Menu item information updated"
-    })
+    }), 200
 
 
 @app.route("/api/v1/menuitem/<int:id>", methods=["DELETE"])
@@ -214,11 +214,11 @@ def delete_menuitem(id):
     if result.rowcount == 0:
         return jsonify({
             "error message": "Could not find the menu item"
-        })
+        }), 404
 
     return jsonify({
         "response message": "Menu item deleted."
-    })
+    }), 200
 
 @app.route("/api/v1/recipe", methods=["GET"])
 def get_recipe():
@@ -227,7 +227,7 @@ def get_recipe():
         result = con.execute(query).fetchall()
 
     recipe_list = [dict(row._mapping) for row in result]
-    return jsonify({"recipe": recipe_list})
+    return jsonify({"recipe": recipe_list}), 200
 
 @app.route("/api/v1/recipe", methods=["POST"])
 def add_recipe():
@@ -236,7 +236,7 @@ def add_recipe():
     if not data or "item_id" not in data or "recipe" not in data:
         return jsonify({
             "error message": "could not add recipe, request body format invalid"
-        })
+        }), 400
 
     with engine.connect() as con:
         # check item exists
@@ -248,13 +248,13 @@ def add_recipe():
         if not item_check:
             return jsonify({
                 "error message": "could not find item id"
-            })
+            }), 404
 
         for r in data["recipe"]:
             if "ingredient_id" not in r or "used_quantity" not in r:
                 return jsonify({
                     "error message": "could not add recipe, request body format invalid"
-                })
+                }), 400
 
             # check ingredient exists
             ing_check = con.execute(
@@ -265,7 +265,7 @@ def add_recipe():
             if not ing_check:
                 return jsonify({
                     "error message": "could not find ingredient id"
-                })
+                }), 404
 
             con.execute(
                 db.text("""
@@ -281,7 +281,7 @@ def add_recipe():
 
         con.commit()
 
-    return jsonify({"response message": "Recipe added successfully!"})
+    return jsonify({"response message": "Recipe added successfully!"}), 201
 
 @app.route("/api/v1/recipe/item/<int:item_id>", methods=["GET"])
 def get_recipe_by_item(item_id):
@@ -292,8 +292,7 @@ def get_recipe_by_item(item_id):
         ).fetchone()
 
         if not item_check:
-            return jsonify({"error message": "Could not find menu item"})
-
+            return jsonify({"error message": "Could not find menu item"}), 404
         result = con.execute(
             db.text("""
                 SELECT ingredient_id, used_quantity
@@ -304,14 +303,14 @@ def get_recipe_by_item(item_id):
         ).fetchall()
 
     if not result:
-        return jsonify({"error message": "Could not find recipe for the menu item"})
+        return jsonify({"error message": "Could not find recipe for the menu item"}), 404
 
     ingredients = [dict(row._mapping) for row in result]
 
     return jsonify({
         "item_id": item_id,
         "ingredients": ingredients
-    })
+    }), 200
 
 @app.route("/api/v1/recipe/<int:recipe_id>", methods=["PUT"])
 def update_recipe(recipe_id):
@@ -320,7 +319,7 @@ def update_recipe(recipe_id):
     if not data or "used_quantity" not in data or data["used_quantity"] == "":
         return jsonify({
             "error message": "Could not update recipe, invalid fields."
-        })
+        }), 400
 
     with engine.connect() as con:
         result = con.execute(
@@ -337,9 +336,9 @@ def update_recipe(recipe_id):
         con.commit()
 
     if result.rowcount == 0:
-        return jsonify({"error message": "Could not find recipe."})
+        return jsonify({"error message": "Could not find recipe."}), 404
 
-    return jsonify({"response message": "Recipe information updated"})
+    return jsonify({"response message": "Recipe information updated"}), 200
 
 @app.route("/api/v1/recipe/<int:recipe_id>", methods=["DELETE"])
 def delete_recipe(recipe_id):
@@ -351,9 +350,9 @@ def delete_recipe(recipe_id):
         con.commit()
 
     if result.rowcount == 0:
-        return jsonify({"error message": "Could not find the recipe."})
+        return jsonify({"error message": "Could not find the recipe."}), 404
 
-    return jsonify({"response message": "Recipe deleted."})
+    return jsonify({"response message": "Recipe deleted."}), 200
 
 @app.route("/api/v1/orderitem", methods=["GET"])
 def get_orderitem():
@@ -363,7 +362,7 @@ def get_orderitem():
 
     orderitem_list = [dict(row._mapping) for row in result]
 
-    return jsonify({"orderitem": orderitem_list})
+    return jsonify({"orderitem": orderitem_list}), 200
 
 @app.route("/api/v1/orderitem", methods=["POST"])
 def add_orderitem():
@@ -373,12 +372,12 @@ def add_orderitem():
         ("item_quantity", "item_price", "order_id", "item_id")):
         return jsonify({
             "error message": "could not add order item, request body format invalid"
-        })
+        }), 400
 
     with engine.connect() as con:
         # optional FK checks (good practice)
         order_check = con.execute(
-            db.text("SELECT 1 FROM `order` WHERE order_id = :id"),
+            db.text("SELECT 1 FROM orders WHERE order_id = :id"),
             {"id": data["order_id"]}
         ).fetchone()
 
@@ -390,7 +389,7 @@ def add_orderitem():
         if not order_check or not item_check:
             return jsonify({
                 "error message": "could not find order id or item id"
-            })
+            }), 404
 
         con.execute(
             db.text("""
@@ -407,7 +406,7 @@ def add_orderitem():
         )
         con.commit()
 
-    return jsonify({"response message": "Order item added successfully!"})
+    return jsonify({"response message": "Order item added successfully!"}), 201
 
 @app.route("/api/v1/orderitem/<int:id>", methods=["GET"])
 def get_orderitem_by_id(id):
@@ -418,9 +417,9 @@ def get_orderitem_by_id(id):
         ).fetchone()
 
     if result is None:
-        return jsonify({"error message": "Could not find the order item."})
+        return jsonify({"error message": "Could not find the order item."}), 404
 
-    return jsonify(dict(result._mapping))
+    return jsonify(dict(result._mapping)), 200
 
 @app.route("/api/v1/orderitem/<int:id>", methods=["PUT"])
 def update_orderitem(id):
@@ -429,7 +428,7 @@ def update_orderitem(id):
     if not data or "item_quantity" not in data:
         return jsonify({
             "error message": "Could not update order item, invalid fields."
-        })
+        }), 400
 
     with engine.connect() as con:
         result = con.execute(
@@ -446,9 +445,9 @@ def update_orderitem(id):
         con.commit()
 
     if result.rowcount == 0:
-        return jsonify({"error message": "Could not find order item."})
+        return jsonify({"error message": "Could not find order item."}), 404
 
-    return jsonify({"response message": "Order item information updated"})
+    return jsonify({"response message": "Order item information updated"}), 200
 
 @app.route("/api/v1/orderitem/<int:id>", methods=["DELETE"])
 def delete_orderitem(id):
@@ -460,9 +459,9 @@ def delete_orderitem(id):
         con.commit()
 
     if result.rowcount == 0:
-        return jsonify({"error message": "Could not find order item."})
+        return jsonify({"error message": "Could not find order item."}), 404
 
-    return jsonify({"response message": "Order item deleted."})
+    return jsonify({"response message": "Order item deleted."}), 200
 
 
 
@@ -772,7 +771,7 @@ def delete_order(id):
 def get_admin():
     with engine.connect() as con:
         result = con.execute(db.text("SELECT * FROM admin")).fetchall()
-    return jsonify([dict(row._mapping) for row in result])
+    return jsonify([dict(row._mapping) for row in result]), 200
 
 
 @app.route("/api/v1/admin", methods=["POST"])
