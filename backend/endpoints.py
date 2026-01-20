@@ -283,7 +283,7 @@ def add_recipe():
 
     return jsonify({"response message": "Recipe added successfully!"})
 
-@app.route("/api/v1/recipe/<int:item_id>", methods=["GET"])
+@app.route("/api/v1/recipe/item/<int:item_id>", methods=["GET"])
 def get_recipe_by_item(item_id):
     with engine.connect() as con:
         item_check = con.execute(
@@ -871,6 +871,18 @@ def add_staff():
         return jsonify({"error message": "invalid request body"}), 400
 
     with engine.connect() as con:
+        admin_id = data.get("admin_id")
+
+        if admin_id is not None:
+            admin_check = con.execute(
+                db.text("SELECT 1 FROM admin WHERE admin_id = :id"),
+                {"id": admin_id}
+            ).fetchone()
+
+            if not admin_check:
+                return jsonify({
+                    "error message": "admin_id does not exist"
+                }), 400
         con.execute(
             db.text("""
                 INSERT INTO staff (first_name, last_name, role, email, password, admin_id)
@@ -958,6 +970,15 @@ def add_bill():
         return jsonify({"error message": "invalid request body"}), 400
 
     with engine.connect() as con:
+        order_check = con.execute(
+            db.text("SELECT 1 FROM orders WHERE order_id = :id"),
+            {"id": data["order_id"]}
+        ).fetchone()
+
+        if not order_check:
+            return jsonify({
+                "error message": "order id does not exist"
+            }), 404
         con.execute(
             db.text("""
                 INSERT INTO bill (order_id, total_amount, payment_method, paid_by)
@@ -1030,7 +1051,7 @@ def delete_bill(id):
 # Sales Report Endpoints
 
 @app.route("/api/v1/salesreports", methods=["GET"])
-def get_salesreports():
+def get_salesreport():
     with engine.connect() as con:
         result = con.execute(db.text("SELECT * FROM salesreports")).fetchall()
     return jsonify([dict(row._mapping) for row in result])
@@ -1116,8 +1137,6 @@ def delete_salesreport(id):
         return jsonify({"error message": "sales report not found"}), 404
 
     return jsonify({"response message": "Sales report deleted"})
-
-
 
 
 if __name__ == '__main__':
