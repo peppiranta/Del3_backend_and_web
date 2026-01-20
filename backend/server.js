@@ -1,7 +1,7 @@
 // backend/server.js
 const express = require('express');
 const cors = require('cors');
-const db = require('./db'); // DATABASE CONNECTION
+const db = require('./db'); // DATABASE CONNECTION HERE
 
 const app = express();
 app.use(express.json()); 
