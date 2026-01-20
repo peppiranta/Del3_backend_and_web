@@ -22,3 +22,9 @@ body {
     padding: 20px;
 }
 
+header {
+    padding: 10px 0;
+    text-align: center;
+    border-radius: 12px;
+    margin-bottom: 20px;
+}
