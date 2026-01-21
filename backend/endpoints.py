@@ -467,15 +467,20 @@ def delete_orderitem(id):
 
 # Hammaad's Endpoints
 
-# CUSTOMER
+# Hammaad's Endpoints
+
+# Customer 
+
 @app.route('/api/v1/customer', methods=['GET'])
 def get_customers():
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT customer_id, first_name, last_name, email, phone, dietary_preference FROM customer")
-    customers = cursor.fetchall()
-    conn.close()
+    with engine.connect() as con:
+        result = con.execute(db.text(
+            "SELECT customer_id, first_name, last_name, email, phone, dietary_preference FROM customer"
+        ))
+        customers = result.mappings().all()
+
     return jsonify({"customer": customers}), 200
+
 
 @app.route('/api/v1/customer', methods=['POST'])
 def add_customer():
@@ -483,33 +488,30 @@ def add_customer():
     if not data:
         return jsonify({"error message": "could not add customer, request body format invalid"}), 400
 
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    sql = "INSERT INTO customer (first_name, last_name, email, password, phone, dietary_preference) VALUES (%s,%s,%s,%s,%s,%s)"
-    values = (
-        data.get('first_name'),
-        data.get('last_name'),
-        data.get('email'),
-        data.get('password'),
-        data.get('phone'),
-        data.get('dietary_preference')
-    )
-    cursor.execute(sql, values)
-    conn.commit()
-    conn.close()
+    with engine.connect() as con:
+        query = db.text("""
+            INSERT INTO customer (first_name, last_name, email, password, phone, dietary_preference)
+            VALUES (:first_name, :last_name, :email, :password, :phone, :dietary_preference)
+        """)
+        con.execute(query, data)
+        con.commit()
+
     return jsonify({"response message": "Customer added successfully!"}), 201
+
 
 @app.route('/api/v1/customer/<int:id>', methods=['GET'])
 def get_customer(id):
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT * FROM customer WHERE customer_id = %s", (id,))
-    customer = cursor.fetchone()
-    conn.close()
+    with engine.connect() as con:
+        result = con.execute(
+            db.text("SELECT * FROM customer WHERE customer_id = :id"),
+            {"id": id}
+        ).mappings().first()
 
-    if not customer:
+    if not result:
         return jsonify({"error message": "Could not find customer."}), 404
-    return jsonify(customer), 200
+
+    return jsonify(result), 200
+
 
 @app.route('/api/v1/customer/<int:id>', methods=['PUT'])
 def update_customer(id):
@@ -517,43 +519,51 @@ def update_customer(id):
     if not data or any(v == "" for v in data.values()):
         return jsonify({"error message": "Could not update customer, invalid fields."}), 400
 
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM customer WHERE customer_id = %s", (id,))
-    if not cursor.fetchone():
-        conn.close()
-        return jsonify({"error message": "Could not find customer."}), 404
+    fields = ", ".join([f"{k}=: {k}".replace(" ", "") for k in data.keys()])
+    data["id"] = id
 
-    fields = ", ".join([f"{k}=%s" for k in data.keys()])
-    values = list(data.values()) + [id]
-    cursor.execute(f"UPDATE customer SET {fields} WHERE customer_id=%s", values)
-    conn.commit()
-    conn.close()
+    with engine.connect() as con:
+        exists = con.execute(
+            db.text("SELECT * FROM customer WHERE customer_id = :id"),
+            {"id": id}
+        ).first()
+
+        if not exists:
+            return jsonify({"error message": "Could not find customer."}), 404
+
+        con.execute(
+            db.text(f"UPDATE customer SET {fields} WHERE customer_id=:id"),
+            data
+        )
+        con.commit()
+
     return jsonify({"response message": "Customer information updated"}), 200
+
 
 @app.route('/api/v1/customer/<int:id>', methods=['DELETE'])
 def delete_customer(id):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM customer WHERE customer_id = %s", (id,))
-    if not cursor.fetchone():
-        conn.close()
+    with engine.connect() as con:
+        result = con.execute(
+            db.text("DELETE FROM customer WHERE customer_id = :id"),
+            {"id": id}
+        )
+        con.commit()
+
+    if result.rowcount == 0:
         return jsonify({"error message": "Could not find customer."}), 404
 
-    cursor.execute("DELETE FROM customer WHERE customer_id = %s", (id,))
-    conn.commit()
-    conn.close()
     return jsonify({"response message": "Customer deleted."}), 200
 
 # Booking
 @app.route('/api/v1/booking', methods=['GET'])
 def get_bookings():
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT * FROM booking")
-    bookings = cursor.fetchall()
-    conn.close()
+    with engine.connect() as con:
+        bookings = con.execute(
+            db.text("SELECT * FROM booking")
+        ).mappings().all()
+
     return jsonify({"booking": bookings}), 200
+
 
 @app.route('/api/v1/booking', methods=['POST'])
 def add_booking():
@@ -561,73 +571,79 @@ def add_booking():
     if not data:
         return jsonify({"error message": "could not add booking, request body format invalid"}), 400
 
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    sql = "INSERT INTO booking (date, time, guest_count, customer_id, table_id) VALUES (%s,%s,%s,%s,%s)"
-    values = (
-        data.get('date'),
-        data.get('time'),
-        data.get('guest_count'),
-        data.get('customer_id'),
-        data.get('table_id')
-    )
-    cursor.execute(sql, values)
-    conn.commit()
-    conn.close()
+    with engine.connect() as con:
+        con.execute(db.text("""
+            INSERT INTO booking (date, time, guest_count, customer_id, table_id)
+            VALUES (:date, :time, :guest_count, :customer_id, :table_id)
+        """), data)
+        con.commit()
+
     return jsonify({"response message": "Booking added successfully!"}), 201
+
 
 @app.route('/api/v1/booking/<int:id>', methods=['GET'])
 def get_booking(id):
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT * FROM booking WHERE booking_id=%s", (id,))
-    booking = cursor.fetchone()
-    conn.close()
+    with engine.connect() as con:
+        booking = con.execute(
+            db.text("SELECT * FROM booking WHERE booking_id=:id"),
+            {"id": id}
+        ).mappings().first()
 
     if not booking:
         return jsonify({"error message": "Could not find the booking."}), 404
+
     return jsonify(booking), 200
+
 
 @app.route('/api/v1/booking/<int:id>', methods=['PUT'])
 def update_booking(id):
     data = request.get_json()
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM booking WHERE booking_id=%s", (id,))
-    if not cursor.fetchone():
-        conn.close()
-        return jsonify({"error message": "Could not find booking."}), 404
+    fields = ", ".join([f"{k}=:{k}" for k in data.keys()])
+    data["id"] = id
 
-    fields = ", ".join([f"{k}=%s" for k in data.keys()])
-    values = list(data.values()) + [id]
-    cursor.execute(f"UPDATE booking SET {fields} WHERE booking_id=%s", values)
-    conn.commit()
-    conn.close()
+    with engine.connect() as con:
+        exists = con.execute(
+            db.text("SELECT * FROM booking WHERE booking_id=:id"),
+            {"id": id}
+        ).first()
+
+        if not exists:
+            return jsonify({"error message": "Could not find booking."}), 404
+
+        con.execute(
+            db.text(f"UPDATE booking SET {fields} WHERE booking_id=:id"),
+            data
+        )
+        con.commit()
+
     return jsonify({"response message": "Booking information updated"}), 200
 
 @app.route('/api/v1/booking/<int:id>', methods=['DELETE'])
 def delete_booking(id):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM booking WHERE booking_id=%s", (id,))
-    if not cursor.fetchone():
-        conn.close()
+    with engine.connect() as con:
+        result = con.execute(
+            db.text("DELETE FROM booking WHERE booking_id=:id"),
+            {"id": id}
+        )
+        con.commit()
+
+    if result.rowcount == 0:
         return jsonify({"error message": "Could not find booking."}), 404
 
-    cursor.execute("DELETE FROM booking WHERE booking_id=%s", (id,))
-    conn.commit()
-    conn.close()
     return jsonify({"response message": "Booking deleted."}), 200
 
 # Table
+
 @app.route('/api/v1/table', methods=['GET'])
 def get_tables():
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT * FROM restauranttable")
-    tables = cursor.fetchall()
-    conn.close()
+    with engine.connect() as con:
+        result = con.execute(
+            db.text("SELECT * FROM restauranttable")
+        )
+        tables = result.mappings().all()
+
     return jsonify({"table": tables}), 200
+
 
 @app.route('/api/v1/table', methods=['POST'])
 def add_table():
@@ -635,66 +651,80 @@ def add_table():
     if not data:
         return jsonify({"error message": "could not add table, request body format invalid"}), 400
 
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    sql = "INSERT INTO restauranttable (seats, placement, status) VALUES (%s,%s,%s)"
-    values = (data.get('seats'), data.get('placement'), data.get('status'))
-    cursor.execute(sql, values)
-    conn.commit()
-    conn.close()
+    with engine.connect() as con:
+        query = db.text("""
+            INSERT INTO restauranttable (seats, placement, status)
+            VALUES (:seats, :placement, :status)
+        """)
+        con.execute(query, {
+            "seats": data.get("seats"),
+            "placement": data.get("placement"),
+            "status": data.get("status")
+        })
+        con.commit()
+
     return jsonify({"response message": "Table added successfully!"}), 201
 
 @app.route('/api/v1/table/<int:id>', methods=['GET'])
 def get_table(id):
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT * FROM restauranttable WHERE table_id=%s", (id,))
-    table = cursor.fetchone()
-    conn.close()
+    with engine.connect() as con:
+        table = con.execute(
+            db.text("SELECT * FROM restauranttable WHERE table_id = :id"),
+            {"id": id}
+        ).mappings().first()
 
     if not table:
         return jsonify({"error message": "Could not find the table."}), 404
+
     return jsonify(table), 200
 
 @app.route('/api/v1/table/<int:id>', methods=['PUT'])
 def update_table(id):
     data = request.get_json()
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM restauranttable WHERE table_id=%s", (id,))
-    if not cursor.fetchone():
-        conn.close()
-        return jsonify({"error message": "Could not find table."}), 404
 
-    fields = ", ".join([f"{k}=%s" for k in data.keys()])
-    values = list(data.values()) + [id]
-    cursor.execute(f"UPDATE restauranttable SET {fields} WHERE table_id=%s", values)
-    conn.commit()
-    conn.close()
+    with engine.connect() as con:
+        exists = con.execute(
+            db.text("SELECT * FROM restauranttable WHERE table_id = :id"),
+            {"id": id}
+        ).first()
+
+        if not exists:
+            return jsonify({"error message": "Could not find table."}), 404
+
+        fields = ", ".join([f"{k} = :{k}" for k in data.keys()])
+        data["id"] = id
+
+        con.execute(
+            db.text(f"UPDATE restauranttable SET {fields} WHERE table_id = :id"),
+            data
+        )
+        con.commit()
+
     return jsonify({"response message": "Table information updated"}), 200
 
 @app.route('/api/v1/table/<int:id>', methods=['DELETE'])
 def delete_table(id):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM restauranttable WHERE table_id=%s", (id,))
-    if not cursor.fetchone():
-        conn.close()
+    with engine.connect() as con:
+        result = con.execute(
+            db.text("DELETE FROM restauranttable WHERE table_id = :id"),
+            {"id": id}
+        )
+        con.commit()
+
+    if result.rowcount == 0:
         return jsonify({"error message": "Could not find table."}), 404
 
-    cursor.execute("DELETE FROM restauranttable WHERE table_id=%s", (id,))
-    conn.commit()
-    conn.close()
     return jsonify({"response message": "Table deleted."}), 200
 
 # order
+
 @app.route('/api/v1/order', methods=['GET'])
 def get_orders():
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT * FROM orders")
-    orders = cursor.fetchall()
-    conn.close()
+    with engine.connect() as con:
+        orders = con.execute(
+            db.text("SELECT * FROM orders")
+        ).mappings().all()
+
     return jsonify({"order": orders}), 200
 
 @app.route('/api/v1/order', methods=['POST'])
@@ -703,65 +733,64 @@ def add_order():
     if not data:
         return jsonify({"error message": "could not add order, request body format invalid"}), 400
 
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    sql = "INSERT INTO orders (order_time, total_amount, customer_id, staff_id, table_id) VALUES (%s,%s,%s,%s,%s)"
-    values = (
-        data.get('order_time'),
-        data.get('total_amount'),
-        data.get('customer_id'),
-        data.get('staff_id'),
-        data.get('table_id')
-    )
-    cursor.execute(sql, values)
-    conn.commit()
-    conn.close()
+    with engine.connect() as con:
+        con.execute(db.text("""
+            INSERT INTO orders (order_time, total_amount, customer_id, staff_id, table_id)
+            VALUES (:order_time, :total_amount, :customer_id, :staff_id, :table_id)
+        """), data)
+        con.commit()
+
     return jsonify({"response message": "Order added successfully!"}), 201
 
 @app.route('/api/v1/order/<int:id>', methods=['GET'])
 def get_order(id):
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT * FROM orders WHERE order_id=%s", (id,))
-    order = cursor.fetchone()
-    conn.close()
+    with engine.connect() as con:
+        order = con.execute(
+            db.text("SELECT * FROM orders WHERE order_id=:id"),
+            {"id": id}
+        ).mappings().first()
 
     if not order:
         return jsonify({"error message": "Could not find the order."}), 404
+
     return jsonify(order), 200
 
 @app.route('/api/v1/order/<int:id>', methods=['PUT'])
 def update_order(id):
     data = request.get_json()
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM orders WHERE order_id=%s", (id,))
-    if not cursor.fetchone():
-        conn.close()
-        return jsonify({"error message": "Could not find order."}), 404
+    fields = ", ".join([f"{k}=:{k}" for k in data.keys()])
+    data["id"] = id
 
-    fields = ", ".join([f"{k}=%s" for k in data.keys()])
-    values = list(data.values()) + [id]
-    cursor.execute(f"UPDATE orders SET {fields} WHERE order_id=%s", values)
-    conn.commit()
-    conn.close()
+    with engine.connect() as con:
+        exists = con.execute(
+            db.text("SELECT * FROM orders WHERE order_id=:id"),
+            {"id": id}
+        ).first()
+
+        if not exists:
+            return jsonify({"error message": "Could not find order."}), 404
+
+        con.execute(
+            db.text(f"UPDATE orders SET {fields} WHERE order_id=:id"),
+            data
+        )
+        con.commit()
+
     return jsonify({"response message": "Order information updated"}), 200
 
 @app.route('/api/v1/order/<int:id>', methods=['DELETE'])
 def delete_order(id):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM orders WHERE order_id=%s", (id,))
-    if not cursor.fetchone():
-        conn.close()
+    with engine.connect() as con:
+        result = con.execute(
+            db.text("DELETE FROM orders WHERE order_id=:id"),
+            {"id": id}
+        )
+        con.commit()
+
+    if result.rowcount == 0:
         return jsonify({"error message": "Could not find order."}), 404
 
-    cursor.execute("DELETE FROM orders WHERE order_id=%s", (id,))
-    conn.commit()
-    conn.close()
     return jsonify({"response message": "Order deleted."}), 200
-
-
 
 # Peppi's Endpoints
 
