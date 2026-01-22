@@ -1,7 +1,63 @@
-<form id="booking-form">
-    <input type="text" id="b-name" placeholder="Your Name" required>
-    <input type="date" id="b-date" required>
-    <input type="time" id="b-time" required>
-    <input type="number" id="b-guests" placeholder="Guests" required>
-    <button type="submit">Book Now</button>
-</form>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Book a Table</title>
+  <link rel="stylesheet" href="main.css">
+</head>
+<body>
+
+<div class="page-container">
+
+  <!-- BOOKING VIEW -->
+  <div class="card booking-container" id="bookingView">
+
+    <h1>Book a Table</h1>
+
+    <!-- Guests -->
+    <div class="card-section">
+      <label>Guests</label>
+      <div class="guests-control">
+        <button onclick="changeGuests(-1)">−</button>
+        <span id="guestCount">2</span>
+        <button onclick="changeGuests(1)">+</button>
+      </div>
+    </div>
+
+    <!-- Date -->
+    <div class="card-section">
+      <label>Date</label>
+      <input type="date" id="bookingDate">
+    </div>
+
+    <!-- Time -->
+    <div class="card-section">
+      <label>Select Time</label>
+      <div class="time-grid" id="timeGrid"></div>
+    </div>
+
+    <!-- Tables -->
+    <div class="card-section">
+      <label>Select Table</label>
+      <div class="table-grid" id="tableGrid"></div>
+    </div>
+
+    <!-- Actions -->
+    <div class="actions">
+      <button class="cancel" onclick="location.href='customer.html'">Cancel</button>
+      <button class="confirm" onclick="confirmBooking()">Confirm</button>
+    </div>
+
+  </div>
+
+  <!-- CONFIRMATION VIEW (HIDDEN BY DEFAULT) -->
+  <div class="card booking-container hidden" id="confirmationView">
+    <h1>Booking Confirmed!!</h1>
+    <p id="confirmationText"></p>
+  </div>
+
+</div>
+
+<script src="booking.js"></script>
+</body>
+</html>
