@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Staff – View Bookings</title>
+  <link rel="stylesheet" href="main.css">
+</head>
+<body>
+
+<div class="page-container">
+  <div class="card">
+    <h1>Customer Bookings</h1>
+
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Date</th>
+          <th>Time</th>
+          <th>Guests</th>
+          <th>Table</th>
+        </tr>
+      </thead>
+      <tbody id="bookingTableBody">
+        <tr>
+          <td colspan="5">Loading bookings...</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="actions">
+  <a href="staff.html" class="confirm-btn">← Back to Dashboard</a>
+</div>
+
+  </div>
+</div>
+
+<script>
+fetch("http://127.0.0.1:5000/api/v1/booking")
+  .then(res => res.json())
+  .then(data => {
+    const tbody = document.getElementById("bookingTableBody");
+    tbody.innerHTML = "";
+
+    if (data.length === 0) {
+      tbody.innerHTML = "<tr><td colspan='5'>No bookings found</td></tr>";
+      return;
+    }
+
+    data.forEach(b => {
+      const row = document.createElement("tr");
+      row.innerHTML = `
+        <td>${b.booking_id}</td>
+        <td>${b.date}</td>
+        <td>${b.time}</td>
+        <td>${b.guest_count}</td>
+        <td>${b.table_id ?? "Unassigned"}</td>
+      `;
+      tbody.appendChild(row);
+    });
+  })
+  .catch(err => {
+    document.getElementById("bookingTableBody").innerHTML =
+      "<tr><td colspan='5'>Error loading bookings</td></tr>";
+    console.error(err);
+  });
+</script>
+
+</body>
+</html>
