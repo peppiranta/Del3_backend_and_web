@@ -1,7 +1,10 @@
 from flask import Flask, request, jsonify
+from flask_cors import CORS
+
 import sqlalchemy as db
 
 app = Flask(__name__)
+CORS(app)
 
 db_conn = "mysql+mysqlconnector://root:@localhost:3306/restaurant_database"
 engine = db.create_engine(db_conn)
@@ -39,7 +42,7 @@ def add_inventoryitem():
             "name": data["ingredient_name"],
             "quantity": data["ingredient_quantity"]
         })
-        con.commit()
+        con.commit() 
 
     return jsonify({"response message": "Inventory item added"}), 201
 
@@ -57,7 +60,10 @@ def get_inventoryitem_by_id(id):
 @app.route("/api/v1/inventoryitem/<int:id>", methods=["PUT"])
 def update_inventoryitem(id):
     data = request.get_json()
-
+    
+    if not data:
+        return jsonify({"error message": "No fields to update"}), 400
+    
     fields = []
     params = {"id": id}
 
@@ -81,7 +87,7 @@ def update_inventoryitem(id):
             WHERE ingredient_id = :id
         """)
         result = con.execute(query, params)
-        con.commit()
+        con.commit() 
 
     if result.rowcount == 0:
         return jsonify({
@@ -238,7 +244,7 @@ def add_recipe():
             "error message": "could not add recipe, request body format invalid"
         }), 400
 
-    with engine.connect() as con:
+    with engine.begin() as con:
         # check item exists
         item_check = con.execute(
             db.text("SELECT 1 FROM menuitem WHERE item_id = :id"),
@@ -278,7 +284,6 @@ def add_recipe():
                     "used_quantity": r["used_quantity"]
                 }
             )
-
         con.commit()
 
     return jsonify({"response message": "Recipe added successfully!"}), 201
@@ -467,19 +472,18 @@ def delete_orderitem(id):
 
 # Hammaad's Endpoints
 
-# Hammaad's Endpoints
-
 # Customer 
 
 @app.route('/api/v1/customer', methods=['GET'])
-def get_customers():
+def get_customer():
     with engine.connect() as con:
         result = con.execute(db.text(
             "SELECT customer_id, first_name, last_name, email, phone, dietary_preference FROM customer"
-        ))
-        customers = result.mappings().all()
+        )).mappings().all()
+        customers = [dict(row) for row in result]
 
-    return jsonify({"customer": customers}), 200
+    return jsonify(customers), 200
+
 
 
 @app.route('/api/v1/customer', methods=['POST'])
@@ -493,49 +497,59 @@ def add_customer():
             INSERT INTO customer (first_name, last_name, email, password, phone, dietary_preference)
             VALUES (:first_name, :last_name, :email, :password, :phone, :dietary_preference)
         """)
-        con.execute(query, data)
+        con.execute(query,data)
         con.commit()
 
     return jsonify({"response message": "Customer added successfully!"}), 201
 
 
 @app.route('/api/v1/customer/<int:id>', methods=['GET'])
-def get_customer(id):
+def get_customer_by_id(id):
     with engine.connect() as con:
         result = con.execute(
             db.text("SELECT * FROM customer WHERE customer_id = :id"),
             {"id": id}
-        ).mappings().first()
+        ).first()
 
     if not result:
         return jsonify({"error message": "Could not find customer."}), 404
+    
+    customer = dict(result._mapping)
 
-    return jsonify(result), 200
+    return jsonify(customer), 200
 
 
 @app.route('/api/v1/customer/<int:id>', methods=['PUT'])
 def update_customer(id):
     data = request.get_json()
-    if not data or any(v == "" for v in data.values()):
-        return jsonify({"error message": "Could not update customer, invalid fields."}), 400
+    
+    if not data:
+        return jsonify({"error message": "No fields to update"}), 400
 
-    fields = ", ".join([f"{k}=: {k}".replace(" ", "") for k in data.keys()])
-    data["id"] = id
+    fields = []
+    params = {"id": id}
 
-    with engine.connect() as con:
+    for key in ("first_name", "last_name", "email", "password", "phone", "dietary_preference"):
+        if key in data:
+            fields.append(f"{key} = :{key}")
+            params[key] = data[key]
+
+    if not fields:
+        return jsonify({"error message": "No valid fields to update"}), 400
+
+    with engine.begin() as con:
         exists = con.execute(
-            db.text("SELECT * FROM customer WHERE customer_id = :id"),
+            db.text("SELECT 1 FROM customer WHERE customer_id = :id"),
             {"id": id}
-        ).first()
+        ).fetchone()
 
         if not exists:
             return jsonify({"error message": "Could not find customer."}), 404
 
         con.execute(
-            db.text(f"UPDATE customer SET {fields} WHERE customer_id=:id"),
-            data
+            db.text(f"UPDATE customer SET {', '.join(fields)} WHERE customer_id = :id"),
+            params
         )
-        con.commit()
 
     return jsonify({"response message": "Customer information updated"}), 200
 
@@ -556,13 +570,24 @@ def delete_customer(id):
 
 # Booking
 @app.route('/api/v1/booking', methods=['GET'])
-def get_bookings():
+def get_booking():
     with engine.connect() as con:
-        bookings = con.execute(
-            db.text("SELECT * FROM booking")
-        ).mappings().all()
+        result = con.execute(db.text("SELECT * FROM booking")).fetchall()
 
-    return jsonify({"booking": bookings}), 200
+        bookings_list = []
+        for b in result:
+            row = dict(b._mapping)
+           
+            row["date"] = str(row["date"])        
+            row["time"] = str(row["time"])
+
+            # Handle nullable table_id
+            if row.get("table_id") is None:
+                row["table_id"] = "Unassigned"
+
+            bookings_list.append(row)
+
+    return jsonify(bookings_list), 200
 
 
 @app.route('/api/v1/booking', methods=['POST'])
@@ -572,6 +597,22 @@ def add_booking():
         return jsonify({"error message": "could not add booking, request body format invalid"}), 400
 
     with engine.connect() as con:
+        customer_exists = con.execute(
+            db.text("SELECT 1 FROM customer WHERE customer_id = :id"),
+            {"id": data.get("customer_id")}
+        ).fetchone()
+        table_exists = None
+        if data.get("table_id") is not None:
+            table_exists = con.execute(
+                db.text("SELECT 1 FROM restauranttable WHERE table_id = :id"),
+                {"id": data.get("table_id")}
+            ).fetchone()
+
+        if not customer_exists:
+            return jsonify({"error message": "customer_id does not exist"}), 404
+        if data.get("table_id") is not None and not table_exists:
+            return jsonify({"error message": "table_id does not exist"}), 404
+        
         con.execute(db.text("""
             INSERT INTO booking (date, time, guest_count, customer_id, table_id)
             VALUES (:date, :time, :guest_count, :customer_id, :table_id)
@@ -582,15 +623,26 @@ def add_booking():
 
 
 @app.route('/api/v1/booking/<int:id>', methods=['GET'])
-def get_booking(id):
+def get_booking_by_id(id):
     with engine.connect() as con:
-        booking = con.execute(
-            db.text("SELECT * FROM booking WHERE booking_id=:id"),
-            {"id": id}
-        ).mappings().first()
+        query = db.text("""
+            SELECT *
+            FROM booking
+            WHERE booking_id = :id
+        """)
+        row = con.execute(query, {"id": id}).first()
 
-    if not booking:
-        return jsonify({"error message": "Could not find the booking."}), 404
+    if not row:
+        return jsonify({
+            "error message": "Could not find the booking."
+        }), 404
+
+    booking = dict(row._mapping)
+
+    if booking.get("date"):
+        booking["date"] = str(booking["date"])
+    if booking.get("time"):
+        booking["time"] = str(booking["time"])
 
     return jsonify(booking), 200
 
@@ -598,23 +650,33 @@ def get_booking(id):
 @app.route('/api/v1/booking/<int:id>', methods=['PUT'])
 def update_booking(id):
     data = request.get_json()
-    fields = ", ".join([f"{k}=:{k}" for k in data.keys()])
-    data["id"] = id
+    if not data:
+        return jsonify({"error message": "No fields to update"}), 400
 
-    with engine.connect() as con:
+    fields = []
+    params = {"id": id}
+
+    for key in ("date", "time", "guest_count", "customer_id", "table_id"):
+        if key in data:
+            fields.append(f"{key} = :{key}")
+            params[key] = data[key]
+
+    if not fields:
+        return jsonify({"error message": "No valid fields to update"}), 400
+
+    with engine.begin() as con:
         exists = con.execute(
-            db.text("SELECT * FROM booking WHERE booking_id=:id"),
+            db.text("SELECT 1 FROM booking WHERE booking_id = :id"),
             {"id": id}
-        ).first()
+        ).fetchone()
 
         if not exists:
-            return jsonify({"error message": "Could not find booking."}), 404
+            return jsonify({"error message": "Booking not found"}), 404
 
         con.execute(
-            db.text(f"UPDATE booking SET {fields} WHERE booking_id=:id"),
-            data
+            db.text(f"UPDATE booking SET {', '.join(fields)} WHERE booking_id = :id"),
+            params
         )
-        con.commit()
 
     return jsonify({"response message": "Booking information updated"}), 200
 
@@ -635,7 +697,7 @@ def delete_booking(id):
 # Table
 
 @app.route('/api/v1/table', methods=['GET'])
-def get_tables():
+def get_table():
     with engine.connect() as con:
         result = con.execute(
             db.text("SELECT * FROM restauranttable")
@@ -666,7 +728,7 @@ def add_table():
     return jsonify({"response message": "Table added successfully!"}), 201
 
 @app.route('/api/v1/table/<int:id>', methods=['GET'])
-def get_table(id):
+def get_table_by_id(id):
     with engine.connect() as con:
         table = con.execute(
             db.text("SELECT * FROM restauranttable WHERE table_id = :id"),
@@ -681,7 +743,9 @@ def get_table(id):
 @app.route('/api/v1/table/<int:id>', methods=['PUT'])
 def update_table(id):
     data = request.get_json()
-
+    
+    if not data:
+        return jsonify({"error message": "No fields to update"}), 400
     with engine.connect() as con:
         exists = con.execute(
             db.text("SELECT * FROM restauranttable WHERE table_id = :id"),
@@ -719,11 +783,17 @@ def delete_table(id):
 # order
 
 @app.route('/api/v1/order', methods=['GET'])
-def get_orders():
+def get_order():
     with engine.connect() as con:
-        orders = con.execute(
+        rows = con.execute(
             db.text("SELECT * FROM orders")
-        ).mappings().all()
+        ).fetchall()
+
+    orders = [dict(r._mapping) for r in rows]
+
+    for o in orders:
+        if o.get("order_time"):
+            o["order_time"] = str(o["order_time"])
 
     return jsonify({"order": orders}), 200
 
@@ -734,6 +804,28 @@ def add_order():
         return jsonify({"error message": "could not add order, request body format invalid"}), 400
 
     with engine.connect() as con:
+        customer_exists = con.execute(
+           db.text("SELECT 1 FROM customer WHERE customer_id = :id"),
+               {"id": data.get("customer_id")}
+        ).fetchone()
+        staff_exists = con.execute(
+               db.text("SELECT 1 FROM staff WHERE staff_id = :id"),
+               {"id": data.get("staff_id")}
+        ).fetchone()
+        table_exists = None
+        if data.get("table_id") is not None:
+               table_exists = con.execute(
+                   db.text("SELECT 1 FROM restauranttable WHERE table_id = :id"),
+                   {"id": data.get("table_id")}
+               ).fetchone()
+    
+        if not customer_exists:
+               return jsonify({"error message": "customer_id does not exist"}), 404
+        if not staff_exists:
+               return jsonify({"error message": "staff_id does not exist"}), 404
+        if data.get("table_id") is not None and not table_exists:
+               return jsonify({"error message": "table_id does not exist"}), 404
+       
         con.execute(db.text("""
             INSERT INTO orders (order_time, total_amount, customer_id, staff_id, table_id)
             VALUES (:order_time, :total_amount, :customer_id, :staff_id, :table_id)
@@ -743,21 +835,29 @@ def add_order():
     return jsonify({"response message": "Order added successfully!"}), 201
 
 @app.route('/api/v1/order/<int:id>', methods=['GET'])
-def get_order(id):
+def get_order_by_id(id):
     with engine.connect() as con:
-        order = con.execute(
-            db.text("SELECT * FROM orders WHERE order_id=:id"),
+        row = con.execute(
+            db.text("SELECT * FROM orders WHERE order_id = :id"),
             {"id": id}
-        ).mappings().first()
+        ).first()
 
-    if not order:
-        return jsonify({"error message": "Could not find the order."}), 404
+    if not row:
+        return jsonify({"error message": "Could not find order."}), 404
+
+    order = dict(row._mapping)
+
+    if order.get("order_time"):
+        order["order_time"] = str(order["order_time"])
 
     return jsonify(order), 200
 
 @app.route('/api/v1/order/<int:id>', methods=['PUT'])
 def update_order(id):
     data = request.get_json()
+    if not data:
+        return jsonify({"error message": "No fields to update"}), 400
+    
     fields = ", ".join([f"{k}=:{k}" for k in data.keys()])
     data["id"] = id
 
@@ -841,6 +941,8 @@ def get_admin_by_id(id):
 @app.route("/api/v1/admin/<int:id>", methods=["PUT"])
 def update_admin(id):
     data = request.get_json()
+    if not data:
+        return jsonify({"error message": "No fields to update"}), 400
     fields, params = [], {"id": id}
 
     for field in ("first_name", "last_name", "position", "email", "password"):
@@ -932,7 +1034,7 @@ def get_staff_by_id(id):
         ).fetchone()
 
     if not result:
-        return jsonify({"error message": "staff not found"}), 404
+        return jsonify({"error message": "Cannot find staff."}), 404
 
     return jsonify(dict(result._mapping))
 
@@ -940,27 +1042,35 @@ def get_staff_by_id(id):
 @app.route("/api/v1/staff/<int:id>", methods=["PUT"])
 def update_staff(id):
     data = request.get_json()
-    fields, params = [], {"id": id}
+    if not data:
+       return jsonify({"error message": "No fields to update"}), 400
 
-    for field in ("first_name", "last_name", "role", "email", "password", "admin_id"):
-        if field in data:
-            fields.append(f"{field} = :{field}")
-            params[field] = data[field]
-
+    fields = []
+    params = {"id": id}
+ 
+    for key in ("first_name", "last_name", "role", "email", "password", "admin_id"):
+        if key in data:
+            fields.append(f"{key} = :{key}")
+            params[key] = data[key]
+ 
     if not fields:
-        return jsonify({"error message": "invalid fields"}), 400
-
-    with engine.connect() as con:
-        result = con.execute(
+        return jsonify({"error message": "No valid fields to update"}), 400
+ 
+    with engine.begin() as con:
+        exists = con.execute(
+            db.text("SELECT 1 FROM staff WHERE staff_id = :id"),
+            {"id": id}
+        ).fetchone()
+ 
+        if not exists:
+            return jsonify({"error message": "Staff not found"}), 404
+ 
+        con.execute(
             db.text(f"UPDATE staff SET {', '.join(fields)} WHERE staff_id = :id"),
             params
         )
-        con.commit()
-
-    if result.rowcount == 0:
-        return jsonify({"error message": "staff not found"}), 404
-
-    return jsonify({"response message": "Staff updated"})
+ 
+    return jsonify({"response message": "Staff updated"}), 200
 
 
 @app.route("/api/v1/staff/<int:id>", methods=["DELETE"])
@@ -1036,6 +1146,8 @@ def get_bill_by_id(id):
 @app.route("/api/v1/bill/<int:id>", methods=["PUT"])
 def update_bill(id):
     data = request.get_json()
+    if not data:
+        return jsonify({"error message": "No fields to update"}), 400
     fields, params = [], {"id": id}
 
     for field in ("order_id", "total_amount", "payment_method", "paid_by"):
@@ -1129,6 +1241,8 @@ def get_salesreport_by_id(id):
 @app.route("/api/v1/salesreports/<int:id>", methods=["PUT"])
 def update_salesreport(id):
     data = request.get_json()
+    if not data:
+        return jsonify({"error message": "No fields to update"}), 400
     fields, params = [], {"id": id}
 
     for field in ("start_date", "end_date", "total_sales", "best_selling", "peak_hours"):
