@@ -2,8 +2,8 @@
 -- version 5.2.1
 -- https://www.phpmyadmin.net/
 --
--- Host: 127.0.0.1
--- Generation Time: Jan 06, 2026 at 09:12 PM
+-- Host: localhost
+-- Generation Time: Jan 22, 2026 at 12:13 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -65,6 +65,20 @@ CREATE TABLE `booking` (
   `table_id` int(11) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
 
+--
+-- Dumping data for table `booking`
+--
+
+INSERT INTO `booking` (`booking_id`, `date`, `time`, `guest_count`, `customer_id`, `table_id`) VALUES
+(1, '2026-01-23', '18:00:00', 2, 101, 201),
+(2, '2026-01-24', '19:30:00', 4, 102, 202),
+(3, '2026-01-25', '20:00:00', 6, 103, 301),
+(4, '2026-01-25', '17:45:00', 3, 104, 501),
+(5, '2026-01-26', '18:00:00', 3, 1, 301),
+(6, '2026-01-27', '18:00:00', 5, 1, 501),
+(7, '2026-01-28', '18:00:00', 2, 1, 202),
+(8, '2026-01-29', '20:00:00', 3, 1, 401);
+
 -- --------------------------------------------------------
 
 --
@@ -81,6 +95,17 @@ CREATE TABLE `customer` (
   `dietary_preference` varchar(255) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
 
+--
+-- Dumping data for table `customer`
+--
+
+INSERT INTO `customer` (`customer_id`, `first_name`, `last_name`, `email`, `password`, `phone`, `dietary_preference`) VALUES
+(1, 'Alice', 'Green', 'alicegreen@gmail.com', 'password', '07123456789', 'None'),
+(101, 'Sarah', 'Khan', 'sarahkhan@gmail.com', 'password', '0765729838', 'Dairy Free'),
+(102, 'William', 'Jones', 'williamj@gmail.com', 'password', '07563839008', 'None'),
+(103, 'Emma', 'Brown', 'emmab@gmail.com', 'password', '07123246790', 'Gluten free'),
+(104, 'James', 'Wilson', 'jamesw@gmail.com', 'password', '076579072198', 'Vegan');
+
 -- --------------------------------------------------------
 
 --
@@ -92,6 +117,19 @@ CREATE TABLE `inventoryitem` (
   `ingredient_name` varchar(50) NOT NULL,
   `ingredient_quantity` int(11) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
+
+--
+-- Dumping data for table `inventoryitem`
+--
+
+INSERT INTO `inventoryitem` (`ingredient_id`, `ingredient_name`, `ingredient_quantity`) VALUES
+(1, 'Tomatoes', 60),
+(2, 'Chicken Breast', 56),
+(3, 'Mozzarella Cheese', 25),
+(4, 'Basmati Rice', 40),
+(6, 'Onions', 60),
+(9, 'Bread', 34),
+(10, 'Eggs', 68);
 
 -- --------------------------------------------------------
 
@@ -106,6 +144,16 @@ CREATE TABLE `menuitem` (
   `category` varchar(50) DEFAULT NULL,
   `admin_id` int(11) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
+
+--
+-- Dumping data for table `menuitem`
+--
+
+INSERT INTO `menuitem` (`item_id`, `item_name`, `item_price`, `category`, `admin_id`) VALUES
+(1, 'Pasta Alfredo', 10.99, 'Main', NULL),
+(2, 'Chicken Pizza', 12.99, 'Main', NULL),
+(3, 'Chicken Burger', 10.99, 'Main', NULL),
+(4, 'Chicken Wrap', 11.99, 'Main', NULL);
 
 -- --------------------------------------------------------
 
@@ -149,6 +197,16 @@ CREATE TABLE `recipe` (
   `ingredient_id` int(11) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
 
+--
+-- Dumping data for table `recipe`
+--
+
+INSERT INTO `recipe` (`recipe_id`, `used_quantity`, `item_id`, `ingredient_id`) VALUES
+(1, 2.00, 1, 1),
+(2, 5.00, 2, 3),
+(3, 8.00, 1, 6),
+(4, 67.00, 1, 4);
+
 -- --------------------------------------------------------
 
 --
@@ -161,6 +219,17 @@ CREATE TABLE `restauranttable` (
   `placement` varchar(20) DEFAULT NULL,
   `status` varchar(15) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
+
+--
+-- Dumping data for table `restauranttable`
+--
+
+INSERT INTO `restauranttable` (`table_id`, `seats`, `placement`, `status`) VALUES
+(201, 2, 'Window', 'Available'),
+(202, 2, 'Center', 'Available'),
+(301, 3, 'Center', 'Available'),
+(401, 4, 'Window', 'Available'),
+(501, 6, 'Private', 'Available');
 
 -- --------------------------------------------------------
 
@@ -192,6 +261,13 @@ CREATE TABLE `staff` (
   `password` varchar(255) NOT NULL,
   `admin_id` int(11) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
+
+--
+-- Dumping data for table `staff`
+--
+
+INSERT INTO `staff` (`staff_id`, `first_name`, `last_name`, `role`, `email`, `password`, `admin_id`) VALUES
+(1, 'William', 'Smith', 'Waiter', 'williamsmith@gmail.com', 'password', NULL);
 
 --
 -- Indexes for dumped tables
@@ -304,25 +380,25 @@ ALTER TABLE `bill`
 -- AUTO_INCREMENT for table `booking`
 --
 ALTER TABLE `booking`
-  MODIFY `booking_id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `booking_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
 
 --
 -- AUTO_INCREMENT for table `customer`
 --
 ALTER TABLE `customer`
-  MODIFY `customer_id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `customer_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=105;
 
 --
 -- AUTO_INCREMENT for table `inventoryitem`
 --
 ALTER TABLE `inventoryitem`
-  MODIFY `ingredient_id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `ingredient_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
 
 --
 -- AUTO_INCREMENT for table `menuitem`
 --
 ALTER TABLE `menuitem`
-  MODIFY `item_id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `item_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
 -- AUTO_INCREMENT for table `orderitem`
@@ -340,13 +416,13 @@ ALTER TABLE `orders`
 -- AUTO_INCREMENT for table `recipe`
 --
 ALTER TABLE `recipe`
-  MODIFY `recipe_id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `recipe_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
 -- AUTO_INCREMENT for table `restauranttable`
 --
 ALTER TABLE `restauranttable`
-  MODIFY `table_id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `table_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=502;
 
 --
 -- AUTO_INCREMENT for table `salesreports`
@@ -358,7 +434,7 @@ ALTER TABLE `salesreports`
 -- AUTO_INCREMENT for table `staff`
 --
 ALTER TABLE `staff`
-  MODIFY `staff_id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `staff_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- Constraints for dumped tables
